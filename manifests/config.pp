@@ -14,6 +14,12 @@ class graphite::config {
     mode   => '0555',
   }
 
+  file { '/opt/graphite/conf/graphite.wsgi':
+    ensure  => present,
+    source  => 'puppet:///modules/graphite/graphite.wsgi',
+    notify  => Service['httpd']
+  }
+
   file { '/opt/graphite/conf/carbon.conf':
     ensure    => present,
     content   => template('graphite/carbon.conf'),
@@ -62,13 +68,22 @@ class graphite::config {
     require => File['/opt/graphite/storage']
   }
 
-  apache::mod { 'headers': }
+  apache::mod { 'wsgi': }
   apache::vhost { 'graphite':
-    priority => '10',
-    port     => $port,
-    template => 'graphite/virtualhost.conf',
-    docroot  => '/opt/graphite/webapp',
-    logroot  => '/opt/graphite/storage/log/webapp/',
+    priority        => '10',
+    port            => $port,
+    docroot         => '/opt/graphite/webapp',
+    logroot         => '/opt/graphite/storage/log/webapp/',
+    custom_fragment => '
+  WSGIScriptAlias / /opt/graphite/conf/graphite.wsgi
+  Alias /content/ /opt/graphite/webapp/content/
+  <Location "/content/">
+    SetHandler None
+  </Location>
+  Alias /media/ "/usr/lib/python2.6/site-packages/django/contrib/admin/media/"
+  <Location "/media/">
+    SetHandler None
+  </Location>'
   }
 
 }
